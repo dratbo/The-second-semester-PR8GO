@@ -158,7 +158,7 @@ P.S. `docker-build` не запуститься если не выполнитс
 
 Использована GitHub Actions. Файл workflow: `.github/workflows/ci.yml` в корне репозитория (каталог `pz8-docker` на GitHub).
 
-##4. Полный YAML-файл pipeline
+## 4. Полный YAML-файл pipeline
 
 ```
 name: CI Pipeline
@@ -225,3 +225,29 @@ jobs:
           docker push ghcr.io/dratbo/techip-tasks:${{ github.sha }}
           docker push ghcr.io/dratbo/techip-tasks:latest
 ```
+
+
+## 5. Пояснение шагов pipeline
+
+- Job `test-and-build`
+
+| Шаг | Действие | 
+|-----|--------|
+| Checkout repository | Клонирование репозитория на runner | 
+| Setup Go | Установка Go 1.23 | 
+| Show Go version | Вывод версии компилятора в лог |
+| Download dependencies | `go mod tidy` в `services/tasks` |
+| Run tests | `go test ./...` — проверка пакетов (тестовых файлов может не быть) |
+| Build application | `go build ./...` — проверка компиляции |
+
+
+- Job `test-and-build`
+
+| Шаг | Действие | 
+|-----|--------|
+| Checkout repository | Клонирование репозитория на runner | 
+| Setup Go | Установка Go 1.23 | 
+| Show Go version | Вывод версии компилятора в лог |
+| Download dependencies | `go mod tidy` в `services/tasks` |
+| Run tests | `go test ./...` — проверка пакетов (тестовых файлов может не быть) |
+| Build application | `go build ./...` — проверка компиляции |
