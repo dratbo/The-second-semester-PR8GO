@@ -143,16 +143,85 @@
 Платформа CI/CD: GitHub Actions
 Структура проекта: pz8-docker/ (взял просто 7-ую практику)
 
+
 ## 2. Структура pipeline
 
-push / pull_request в main
-        │
-        ▼
-┌─────────────────────┐
-│   test-and-build    │  Go 1.23: tidy → test → build
-└──────────┬──────────┘
-           │ needs
-           ▼
-┌─────────────────────┐
-│    docker-build     │  login → docker build → docker push
-└─────────────────────┘
+`push / pull_request в main` -->  `test-and-build` (Go 1.23: tidy → test → build) --> `docker-build` (login → docker build → docker push)
+
+P.S. `docker-build` не запуститься если не выполнится `test-and-build`
+
+- `test-and-build` - проверка и сборка Go-приложения
+- `docker-build` - Сборка Docker-образа и публикация в GHCR (при `push`)
+
+
+## 3. Выбранная платформа
+
+Использована GitHub Actions. Файл workflow: `.github/workflows/ci.yml` в корне репозитория (каталог `pz8-docker` на GitHub).
+
+##4. Полный YAML-файл pipeline
+
+```
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Show Go version
+        run: go version
+
+      - name: Download dependencies
+        run: go mod tidy
+        working-directory: ./services/tasks
+
+      - name: Run tests
+        run: go test ./...
+        working-directory: ./services/tasks
+
+      - name: Build application
+        run: go build ./...
+        working-directory: ./services/tasks
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: test-and-build
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to registry (тут я полез выполнять 7-ой шаг, уже пожалел, но что то вышло)
+        if: github.event_name == 'push'
+        run: echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login -u "${{ secrets.REGISTRY_USERNAME }}" --password-stdin ghcr.io 
+      - name: Build image
+        run: |
+          docker build \
+            -t ghcr.io/dratbo/techip-tasks:${{ github.sha }} \
+            -t ghcr.io/dratbo/techip-tasks:latest \
+            .
+        working-directory: ./services/tasks
+
+      - name: Push image
+        if: github.event_name == 'push'
+        run: |
+          docker push ghcr.io/dratbo/techip-tasks:${{ github.sha }}
+          docker push ghcr.io/dratbo/techip-tasks:latest
+```
